@@ -115,7 +115,7 @@ async def main():
         "inspire_workflow",
         inspire_wf,
         additional_events=[
-
+            RetrievalEvent
         ],
     )
     await server.serve("0.0.0.0", 5050)
