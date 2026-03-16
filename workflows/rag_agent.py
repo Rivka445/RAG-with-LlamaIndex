@@ -115,12 +115,7 @@ async def main():
         "inspire_workflow",
         inspire_wf,
         additional_events=[
-            ContextEvent,
-            Quote1Event,
-            Quote2Event,
-            Quote3Event,
-            SelectQuoteEvent,
-            GenerateStyleEvent,
+
         ],
     )
     await server.serve("0.0.0.0", 5050)
