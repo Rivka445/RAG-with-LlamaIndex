@@ -1,8 +1,4 @@
-﻿# Python
-__pycache__/
-*.pyo
-*.pyd
-
+﻿
 # Virtualenv
 venv/
 ENV/
