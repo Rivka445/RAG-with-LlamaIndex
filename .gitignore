@@ -16,3 +16,7 @@ ENV/
 *.log
 
 storage/
+
+.gradio/
+lib/
+__pycache__/
