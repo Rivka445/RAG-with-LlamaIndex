@@ -12,6 +12,10 @@ class ValidationResultEvent(BaseEvent):
 
 class ValidationErrorEvent(BaseEvent):
     error_message: str
+    
+class EmbeddingEvent(BaseEvent):
+    query: str
+    embedding: List[float]
 
 class NodeWithScore(Event):
     node_id: str
