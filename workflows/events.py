@@ -1,5 +1,8 @@
 from typing import Any, Dict, List, Optional
-from workflows.events import Event, StartEvent, StopEvent
+from llama_index.core.workflow import Event, StartEvent, StopEvent
+
+class IngestEvent(Event):
+    query: str
 
 class BaseEvent(Event):
     request_id: str

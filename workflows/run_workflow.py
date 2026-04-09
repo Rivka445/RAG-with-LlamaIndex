@@ -4,26 +4,19 @@ import gradio as gr
 from dotenv import load_dotenv
 import asyncio
 
-from llama_index.core import StorageContext, load_index_from_storage
 from llama_index.embeddings.cohere import CohereEmbedding
 from llama_index.llms.openai import OpenAI
 from server import RAGWorkflow
 
 load_dotenv()
 
-BASE_DIR = Path(__file__).resolve().parent
-PERSIST_DIR = str((BASE_DIR.parent / "storage").resolve())
-
 embed_model = CohereEmbedding(
-    model_name="embed-multilingual-v3.0", 
+    model_name="embed-multilingual-v3.0",
     cohere_api_key=os.getenv("COHERE_API_KEY")
 )
 llm = OpenAI(model="gpt-4o-mini", openai_api_key=os.getenv("OPENAI_API_KEY"))
 
-storage_context = StorageContext.from_defaults(persist_dir=PERSIST_DIR)
-index = load_index_from_storage(storage_context, embed_model=embed_model)
-
-rag_wf = RAGWorkflow(index=index, llm=llm)
+rag_wf = RAGWorkflow(embed_model=embed_model, llm=llm)
 
 async def chat_logic(message):
     try:
@@ -50,7 +43,8 @@ with gr.Blocks(title="RAG System") as demo:
 
     def respond(message, chat_history):
         bot_message = asyncio.run(chat_logic(message))
-        chat_history.append((message, bot_message))
+        chat_history.append(gr.ChatMessage(role="user", content=message))
+        chat_history.append(gr.ChatMessage(role="assistant", content=bot_message))
         return "", chat_history
 
     msg.submit(respond, [msg, chatbot], [msg, chatbot])
@@ -58,6 +52,6 @@ with gr.Blocks(title="RAG System") as demo:
 
 if __name__ == "__main__":
     demo.launch(
-        server_name="0.0.0.0",
+        server_name="127.0.0.1",
         server_port=7860
     )

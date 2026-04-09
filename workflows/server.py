@@ -1,21 +1,28 @@
 import os
 import uuid
-from typing import List, Any
+from pathlib import Path
+from typing import List
 from llama_index.core.workflow import Workflow, Context, step, StartEvent, StopEvent
 from llama_index.core.llms import ChatMessage
+from llama_index.core import VectorStoreIndex
+from llama_index.core.node_parser import MarkdownNodeParser
+from llama_index.core import SimpleDirectoryReader
 from llama_index.utils.workflow import draw_all_possible_flows
 
 from events import (
-    QueryEvent, ValidationErrorEvent, RetrievalEvent,
+    IngestEvent, QueryEvent, ValidationErrorEvent, RetrievalEvent,
     AnswerGeneratedEvent, WorkflowCompletedEvent, NodeWithScore, EmbeddingEvent
 )
 
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+
 class RAGWorkflow(Workflow):
-    def __init__(self, index, llm, timeout=60):
+    def __init__(self, embed_model, llm, timeout=120):
         super().__init__(timeout=timeout)
-        self.index = index
+        self.embed_model = embed_model
         self.llm = llm
-        
+        self.index = None
+
         try:
             draw_all_possible_flows(self, filename="workflow_steps_graph.html")
             print("✅ Workflow graph generated: workflow_steps_graph.html")
@@ -23,8 +30,25 @@ class RAGWorkflow(Workflow):
             print(f"⚠️ Could not generate graph: {e}")
 
     @step
-    async def start_and_validate(self, ctx: Context, ev: StartEvent) -> QueryEvent | ValidationErrorEvent:
+    async def ingest_step(self, ctx: Context, ev: StartEvent) -> IngestEvent:
         query = ev.get("query", "").strip()
+
+        cursor_docs = SimpleDirectoryReader(input_dir=str(DATA_DIR / "cursor"), required_exts=[".md"]).load_data()
+        claude_docs = SimpleDirectoryReader(input_dir=str(DATA_DIR / "claude"), required_exts=[".md"]).load_data()
+
+        for d in cursor_docs:
+            d.metadata["tool"] = "cursor"
+        for d in claude_docs:
+            d.metadata["tool"] = "claude"
+
+        nodes = MarkdownNodeParser().get_nodes_from_documents(cursor_docs + claude_docs)
+        self.index = VectorStoreIndex(nodes, embed_model=self.embed_model)
+        print(f"✅ Indexed {len(nodes)} nodes")
+        return IngestEvent(query=query)
+
+    @step
+    async def start_and_validate(self, ctx: Context, ev: IngestEvent) -> QueryEvent | ValidationErrorEvent:
+        query = ev.query
         req_id = str(uuid.uuid4())
         if not query:
             return ValidationErrorEvent(request_id=req_id, error_message="Query is empty.")
@@ -32,8 +56,7 @@ class RAGWorkflow(Workflow):
 
     @step
     async def embedding_step(self, ctx: Context, ev: QueryEvent) -> EmbeddingEvent:
-        embed_model = self.index._embed_model 
-        query_embedding = embed_model.get_query_embedding(ev.query)
+        query_embedding = self.embed_model.get_query_embedding(ev.query)
         
         return EmbeddingEvent(
             request_id=ev.request_id, 
