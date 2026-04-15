@@ -1,21 +1,14 @@
-import os
 import uuid
-from pathlib import Path
 from typing import List
 from llama_index.core.workflow import Workflow, Context, step, StartEvent, StopEvent
 from llama_index.core.llms import ChatMessage
-from llama_index.core import VectorStoreIndex, StorageContext, load_index_from_storage
-from llama_index.core.node_parser import MarkdownNodeParser
-from llama_index.core import SimpleDirectoryReader
 from llama_index.utils.workflow import draw_all_possible_flows
 
-from events import (
+from pipeline.events import (
     IngestEvent, QueryEvent, ValidationErrorEvent, RetrievalEvent,
     AnswerGeneratedEvent, WorkflowCompletedEvent, NodeWithScore, EmbeddingEvent
 )
-
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-INDEX_STORAGE_DIR = Path(__file__).resolve().parent.parent / "index_storage"
+from pipeline.indexer import load_or_build_index
 
 class RAGWorkflow(Workflow):
     def __init__(self, embed_model, llm, timeout=120):
@@ -24,42 +17,18 @@ class RAGWorkflow(Workflow):
         self.llm = llm
         self.index = None
 
-        try:
-            draw_all_possible_flows(self, filename="workflow_steps_graph.html")
-            print("✅ Workflow graph generated: workflow_steps_graph.html")
-        except Exception as e:
-            print(f"⚠️ Could not generate graph: {e}")
 
     @step
     async def ingest_step(self, ctx: Context, ev: StartEvent) -> IngestEvent:
         query = ev.get("query", "").strip()
-
-        if INDEX_STORAGE_DIR.exists():
-            storage_context = StorageContext.from_defaults(persist_dir=str(INDEX_STORAGE_DIR))
-            self.index = load_index_from_storage(storage_context, embed_model=self.embed_model)
-            print("✅ Loaded index from local storage")
-        else:
-            cursor_docs = SimpleDirectoryReader(input_dir=str(DATA_DIR / "cursor"), required_exts=[".md"]).load_data()
-            claude_docs = SimpleDirectoryReader(input_dir=str(DATA_DIR / "claude"), required_exts=[".md"]).load_data()
-
-            for d in cursor_docs:
-                d.metadata["tool"] = "cursor"
-            for d in claude_docs:
-                d.metadata["tool"] = "claude"
-
-            nodes = MarkdownNodeParser().get_nodes_from_documents(cursor_docs + claude_docs)
-            self.index = VectorStoreIndex(nodes, embed_model=self.embed_model)
-            self.index.storage_context.persist(persist_dir=str(INDEX_STORAGE_DIR))
-            print(f"✅ Indexed {len(nodes)} nodes and saved to local storage")
-
+        if self.index is None:
+            self.index = load_or_build_index(self.embed_model)
         return IngestEvent(query=query)
 
     @step
     async def start_and_validate(self, ctx: Context, ev: IngestEvent) -> QueryEvent | ValidationErrorEvent:
         query = ev.query
         req_id = str(uuid.uuid4())
-        if not query:
-            return ValidationErrorEvent(request_id=req_id, error_message="Query is empty.")
         return QueryEvent(request_id=req_id, query=query)
 
     @step
@@ -89,9 +58,7 @@ class RAGWorkflow(Workflow):
 
     @step
     async def generation_step(self, ctx: Context, ev: RetrievalEvent) -> AnswerGeneratedEvent:
-        context_str = ""
-        for i, node in enumerate(ev.nodes, 1):
-            context_str += f"--- SOURCE {i} ---\n{node.content}\n\n"
+        context_str = "\n".join(f"--- SOURCE {i} ---\n{node.content}" for i, node in enumerate(ev.nodes, 1))
 
         system_prompt = (
             "You are a professional Research Assistant. Your goal is to answer the user's question "

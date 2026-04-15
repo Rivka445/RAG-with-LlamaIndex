@@ -10,9 +10,6 @@ class BaseEvent(Event):
 class QueryEvent(BaseEvent):
     query: str
 
-class ValidationResultEvent(BaseEvent):
-    is_valid: bool
-
 class ValidationErrorEvent(BaseEvent):
     error_message: str
     

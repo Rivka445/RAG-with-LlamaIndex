@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 
 from llama_index.embeddings.cohere import CohereEmbedding
 from llama_index.llms.openai import OpenAI
-from server import RAGWorkflow
-from router import build_router
+from pipeline.workflow import RAGWorkflow
+from retrieval.router import build_router
 
 load_dotenv()
 
@@ -33,8 +33,7 @@ with gr.Blocks(title="RAG System") as demo:
         msg = gr.Textbox(label="שאלה", placeholder="הקלד כאן את שאלתך...", scale=9)
         gr.Button("שלח", variant="primary", scale=1).click(respond, [msg, chatbot], [msg, chatbot])
     msg.submit(respond, [msg, chatbot], [msg, chatbot])
-    gr.File(value="workflow_steps_graph.html", label="Workflow Graph")
 
 if __name__ == "__main__":
-    demo.launch(server_name="127.0.0.1", server_port=7860)
+    demo.launch(server_name="127.0.0.1", server_port=7861)
 
