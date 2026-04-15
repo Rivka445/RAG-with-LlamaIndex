@@ -2,7 +2,6 @@ import uuid
 from typing import List
 from llama_index.core.workflow import Workflow, Context, step, StartEvent, StopEvent
 from llama_index.core.llms import ChatMessage
-from llama_index.utils.workflow import draw_all_possible_flows
 
 from pipeline.events import (
     IngestEvent, QueryEvent, ValidationErrorEvent, RetrievalEvent,
