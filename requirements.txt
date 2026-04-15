@@ -1,0 +1,7 @@
+llama-index-core
+llama-index-llms-openai
+llama-index-embeddings-cohere
+llama-index-workflows
+gradio
+python-dotenv
+openai

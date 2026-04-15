@@ -1,0 +1,24 @@
+# Virtualenv
+venv/
+ENV/
+.env
+.venv/
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+
+# Logs, temp
+*.log
+
+# Generated
+index_storage/
+.gradio/
+workflows/lib/
+__pycache__/
+*.pyc
+extraction/structured_project_data.json
