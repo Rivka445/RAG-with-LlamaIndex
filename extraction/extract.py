@@ -17,8 +17,6 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 from llama_index.core import SimpleDirectoryReader
 from llama_index.core.prompts import PromptTemplate
 from llama_index.llms.openai import OpenAI
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 from models import (
     Decision, Rule, WarningItem,
     ExtractedProjectData, SourceMetadata, FileInfo,
