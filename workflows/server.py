@@ -4,12 +4,10 @@ from pathlib import Path
 from typing import List
 from llama_index.core.workflow import Workflow, Context, step, StartEvent, StopEvent
 from llama_index.core.llms import ChatMessage
-from llama_index.core import VectorStoreIndex, StorageContext
+from llama_index.core import VectorStoreIndex, StorageContext, load_index_from_storage
 from llama_index.core.node_parser import MarkdownNodeParser
 from llama_index.core import SimpleDirectoryReader
 from llama_index.utils.workflow import draw_all_possible_flows
-from pinecone import Pinecone, ServerlessSpec
-from llama_index.vector_stores.pinecone import PineconeVectorStore
 
 from events import (
     IngestEvent, QueryEvent, ValidationErrorEvent, RetrievalEvent,
@@ -17,7 +15,7 @@ from events import (
 )
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-PINECONE_INDEX_NAME = "rag-documents"
+INDEX_STORAGE_DIR = Path(__file__).resolve().parent.parent / "index_storage"
 
 class RAGWorkflow(Workflow):
     def __init__(self, embed_model, llm, timeout=120):
@@ -32,31 +30,14 @@ class RAGWorkflow(Workflow):
         except Exception as e:
             print(f"⚠️ Could not generate graph: {e}")
 
-    def _get_pinecone_store(self):
-        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-        existing = [i.name for i in pc.list_indexes()]
-        if PINECONE_INDEX_NAME not in existing:
-            pc.create_index(
-                name=PINECONE_INDEX_NAME,
-                dimension=1024,
-                metric="cosine",
-                spec=ServerlessSpec(cloud="aws", region="us-east-1")
-            )
-        pinecone_index = pc.Index(PINECONE_INDEX_NAME)
-        return PineconeVectorStore(pinecone_index=pinecone_index)
-
     @step
     async def ingest_step(self, ctx: Context, ev: StartEvent) -> IngestEvent:
         query = ev.get("query", "").strip()
 
-        vector_store = self._get_pinecone_store()
-        storage_context = StorageContext.from_defaults(vector_store=vector_store)
-
-        # Check if index already has vectors
-        stats = vector_store.client.describe_index_stats()
-        if stats.get("total_vector_count", 0) > 0:
-            self.index = VectorStoreIndex.from_vector_store(vector_store, embed_model=self.embed_model)
-            print("✅ Loaded index from Pinecone")
+        if INDEX_STORAGE_DIR.exists():
+            storage_context = StorageContext.from_defaults(persist_dir=str(INDEX_STORAGE_DIR))
+            self.index = load_index_from_storage(storage_context, embed_model=self.embed_model)
+            print("✅ Loaded index from local storage")
         else:
             cursor_docs = SimpleDirectoryReader(input_dir=str(DATA_DIR / "cursor"), required_exts=[".md"]).load_data()
             claude_docs = SimpleDirectoryReader(input_dir=str(DATA_DIR / "claude"), required_exts=[".md"]).load_data()
@@ -67,8 +48,9 @@ class RAGWorkflow(Workflow):
                 d.metadata["tool"] = "claude"
 
             nodes = MarkdownNodeParser().get_nodes_from_documents(cursor_docs + claude_docs)
-            self.index = VectorStoreIndex(nodes, storage_context=storage_context, embed_model=self.embed_model)
-            print(f"✅ Indexed {len(nodes)} nodes and saved to Pinecone")
+            self.index = VectorStoreIndex(nodes, embed_model=self.embed_model)
+            self.index.storage_context.persist(persist_dir=str(INDEX_STORAGE_DIR))
+            print(f"✅ Indexed {len(nodes)} nodes and saved to local storage")
 
         return IngestEvent(query=query)
 
