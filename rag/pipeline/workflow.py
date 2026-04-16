@@ -1,13 +1,14 @@
 import uuid
 from typing import List
-from llama_index.core.workflow import Workflow, Context, step, StartEvent, StopEvent
+from llama_index.core.workflow import Workflow, Context, step, StartEvent
 from llama_index.core.llms import ChatMessage
 
-from pipeline.events import (
+from rag.pipeline.events import (
     IngestEvent, QueryEvent, ValidationErrorEvent, RetrievalEvent,
     AnswerGeneratedEvent, WorkflowCompletedEvent, NodeWithScore, EmbeddingEvent
 )
-from pipeline.indexer import load_or_build_index
+from rag.pipeline.indexer import load_or_build_index
+
 
 class RAGWorkflow(Workflow):
     def __init__(self, embed_model, llm, timeout=120):

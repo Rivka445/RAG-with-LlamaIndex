@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 
 from llama_index.embeddings.cohere import CohereEmbedding
 from llama_index.llms.openai import OpenAI
-from pipeline.workflow import RAGWorkflow
-from retrieval.router import build_router
+from rag.pipeline.workflow import RAGWorkflow
+from rag.retrieval.router import build_router
 
 load_dotenv()
 

@@ -1,9 +1,10 @@
 import json
+import logging
 from llama_index.core.tools import QueryEngineTool
 from llama_index.core.query_engine import RouterQueryEngine, CustomQueryEngine
 from llama_index.core.selectors import LLMSingleSelector
 
-from retrieval.structured_engine import StructuredQueryEngine, STRUCTURED_JSON_PATH
+from rag.retrieval.structured_engine import StructuredQueryEngine, STRUCTURED_JSON_PATH
 
 
 class _RAGEngine(CustomQueryEngine):
@@ -24,6 +25,7 @@ def build_router(rag_workflow, llm, embed_model) -> RouterQueryEngine:
 
     with open(STRUCTURED_JSON_PATH, encoding="utf-8") as f:
         structured_data = json.load(f)
+    logging.getLogger(__name__).info("Loaded structured JSON from %s: %d top-level keys", STRUCTURED_JSON_PATH, len(structured_data.keys()))
 
     tools = [
         QueryEngineTool.from_defaults(

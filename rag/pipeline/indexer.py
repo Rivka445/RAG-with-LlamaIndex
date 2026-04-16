@@ -3,8 +3,9 @@ from llama_index.core import VectorStoreIndex, StorageContext, load_index_from_s
 from llama_index.core.node_parser import MarkdownNodeParser
 from llama_index.core import SimpleDirectoryReader
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-INDEX_STORAGE_DIR = Path(__file__).resolve().parent.parent / "index_storage"
+# DATA and INDEX directories are resolved relative to the repository root.
+DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+INDEX_STORAGE_DIR = Path(__file__).resolve().parent.parent.parent / "index_storage"
 
 
 def load_or_build_index(embed_model):
